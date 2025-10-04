@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIoT & Signal Processing Quiz</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for custom colors and Inter font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // High-Contrast Neon Accents
+                        'neon-cyan': '#00FFFF',
+                        'neon-magenta': '#FF00FF',
+                        'dark-bg': '#0D0E1A', // Deep dark blue/charcoal
+                        'dark-card': '#1C1D33',
+                        'correct': '#10B981', // Emerald Green
+                        'wrong': '#EF4444',   // Red
+                        'warning': '#F59E0B'  // Amber Yellow
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 10px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.4)',
+                        'neon-md': '0 0 15px rgba(255, 0, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.6)',
+                    }
+                },
+            }
+        }
+    </script>
+    <style>
+        /* Base styling for the high-contrast theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0D0E1A;
+            color: #E0E0E0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Subtle background circuit pattern for futuristic feel */
+        .circuit-bg {
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" opacity="0.1"><path d="M 0 50 L 50 0 L 100 50 L 50 100 Z" fill="none" stroke="%2300FFFF" stroke-width="0.3"/><path d="M 25 75 L 75 75 L 75 25 L 25 25 Z" fill="none" stroke="%23FF00FF" stroke-width="0.3"/></svg>');
+            background-size: 100px 100px;
+        }
+
+        /* Option Button Base Style */
+        .option-button {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border-width: 2px;
+        }
+
+        .option-button:hover:not(:disabled) {
+            background-color: #1C1D33; /* Dark card color */
+            border-color: #00FFFF;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+        }
+
+        .option-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+    </style>
+</head>
+<body class="circuit-bg p-4 flex flex-col items-center justify-center">
+
+    <div class="main-container mx-auto w-full max-w-lg md:max-w-3xl">
+
+        <!-- Header -->
+        <header class="text-center mb-8 p-4 rounded-xl bg-dark-card/70 border border-neon-cyan/20 shadow-neon">
+            <h1 class="text-3xl font-extrabold tracking-tight text-neon-magenta">
+                The AIoT & DSP Challenge
+            </h1>
+            <p id="score-display" class="text-xl mt-2 text-neon-cyan">Score: 0 / 25</p>
+        </header>
+
+        <!-- Quiz Container -->
+        <main id="quiz-container" class="p-6 rounded-xl bg-dark-card shadow-xl border border-neon-cyan/50">
+            <!-- Question will be injected here -->
+            <div id="question-area" class="text-center">
+                <p class="text-xl text-gray-400">Loading Quiz...</p>
+            </div>
+            
+            <!-- Next Button (Hidden by default, always shown after first click) -->
+            <button id="next-button" onclick="moveToNextQuestion()" class="hidden w-full px-8 py-3 mt-6 text-lg font-bold uppercase tracking-wider text-dark-bg rounded-full bg-neon-magenta shadow-neon-md transition duration-200 hover:scale-[1.01] hover:bg-pink-400">
+                Next Question &rarr;
+            </button>
+        </main>
+
+        <!-- Final Score Modal (Hidden by Default) -->
+        <div id="final-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop transition-opacity duration-300">
+            <div class="bg-dark-card p-8 m-4 rounded-xl max-w-md w-full text-center border-2 border-neon-magenta shadow-neon-md">
+                <h2 class="text-4xl font-extrabold text-neon-cyan mb-4">Quiz Complete!</h2>
+                <p id="final-score-text" class="text-3xl text-white mb-6">Your Final Score: 0 / 25</p>
+                <button onclick="restartQuiz()" class="px-6 py-3 bg-neon-magenta text-dark-bg font-bold rounded-full transition duration-200 hover:bg-pink-400">
+                    Restart Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- Feedback Modal (Popup) -->
+        <div id="feedback-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop transition-opacity duration-300">
+            <div class="bg-dark-card p-6 m-4 rounded-xl max-w-sm w-full border-2" id="modal-content">
+                <h3 id="modal-title" class="text-2xl font-bold mb-3">Feedback</h3>
+                <p id="modal-body" class="mb-4 text-gray-300"></p>
+                <!-- Button action is set dynamically -->
+                <button id="modal-button" class="px-4 py-2 bg-neon-cyan text-dark-bg font-bold rounded-full transition duration-200 hover:bg-cyan-400">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. QUIZ DATA STRUCTURE ---
+        const questions = [
+            // AI Questions (5)
+            { q: "What is the primary function of an Activation Function in a Neural Network?", a: ["To introduce non-linearity", "To calculate the error rate", "To speed up training time", "To normalize input data"], c: 0, h: "Think about what allows a deep network to learn complex patterns, which requires moving beyond simple linear transformations.", j: "The Activation Function introduces non-linearity, allowing the network to learn complex mappings and perform tasks beyond simple regression." },
+            { q: "Which AI technique involves training an agent to make sequential decisions by rewarding desired behavior?", a: ["Supervised Learning", "Unsupervised Learning", "Reinforcement Learning", "Transfer Learning"], c: 2, h: "The agent learns through 'trial and error' in an environment, maximizing a cumulative reward.", j: "Reinforcement Learning (RL) trains an agent to act in an environment to maximize its cumulative reward, often used for robotics and gaming." },
+            { q: "What is the key purpose of Transfer Learning?", a: ["To reduce model size", "To apply a model trained on one task to a different but related task", "To completely retrain a model from scratch", "To make training purely unsupervised"], c: 1, h: "It involves leveraging knowledge from a massive dataset or task that is already complete.", j: "Transfer Learning uses a pre-trained model (like one trained on millions of images) as a starting point for a new, specific task, significantly reducing training time and data needs." },
+            { q: "What is Backpropagation primarily used for in training a Neural Network?", a: ["Forward pass calculation", "Minimizing the loss function by adjusting weights", "Data preprocessing", "Selecting the optimal number of layers"], c: 1, h: "It's the core algorithm for learning, relying on the chain rule of calculus to move *backward*.", j: "Backpropagation is an algorithm that efficiently calculates the gradient of the loss function with respect to the network's weights, allowing the weights to be adjusted to minimize loss." },
+            { q: "What is the primary output of a Generative Adversarial Network (GAN)'s Generator component?", a: ["A classification label", "A regression value", "Synthetic data (e.g., images)", "A filtered signal"], c: 2, h: "The name 'Generative' is a major clue; it creates new samples.", j: "The Generator in a GAN creates synthetic data (like fake images or audio) in an attempt to fool the Discriminator." },
+            
+            // IoT/AIoT/Edge Computing Questions (10)
+            { q: "Which communication protocol is often preferred for IoT devices due to its lightweight, publish/subscribe model?", a: ["HTTP", "FTP", "MQTT", "SMTP"], c: 2, h: "This protocol is designed for constrained devices and unreliable networks, minimizing bandwidth usage.", j: "MQTT (Message Queuing Telemetry Transport) is a very lightweight messaging protocol ideal for sensors and low-bandwidth networks in IoT." },
+            { q: "In the context of AIoT, what is the primary benefit of deploying AI models directly on the Edge device?", a: ["Lower overall hardware cost", "Reduced latency and better real-time decision-making", "Simpler data storage management", "Increased data security across all layers"], c: 1, h: "Processing data locally avoids the time delay associated with sending data to the cloud.", j: "Edge AI drastically reduces latency by processing data locally, enabling instantaneous decision-making critical for applications like autonomous driving or industrial control systems." },
+            { q: "What is the role of an IoT Gateway?", a: ["To provide power to all connected devices", "To secure cloud storage only", "To bridge connectivity between heterogeneous devices and the cloud network", "To run complex deep learning models exclusively"], c: 2, h: "Think of it as the 'middleman' between the local network of things and the wider internet/cloud.", j: "The IoT Gateway serves as a translation layer, aggregating, securing, and preprocessing data from various local sensors before sending it to the cloud or data center." },
+            { q: "Which term describes a virtual representation of a physical asset, system, or process?", a: ["Machine Vision", "Digital Twin", "Deepfake", "Semantic Web"], c: 1, h: "It's a concept used for monitoring, simulation, and analysis in advanced IoT and industrial systems.", j: "A Digital Twin is a virtual replica that is updated with real-time data from its physical counterpart, allowing for simulation and predictive maintenance." },
+            { q: "Edge Computing prioritizes what kind of data processing?", a: ["Long-term historical analysis", "Batch processing of large datasets", "Real-time, local processing near the source", "Large-scale data warehousing"], c: 2, h: "The 'Edge' refers to the location of the processing, as close to the data source as possible.", j: "Edge Computing involves processing data locally at the source (the 'edge' of the network) to ensure real-time responsiveness and conserve bandwidth." },
+            { q: "The term AIoT is a fusion of AI and which technology?", a: ["Augmented Reality", "Internet of Things", "Optics Technology", "Telecommunications"], c: 1, h: "The name itself is an acronym: A-I-o-T.", j: "AIoT stands for the convergence of Artificial Intelligence and the Internet of Things, enabling connected devices to learn and make smart decisions." },
+            { q: "Which layer in the standard IoT architecture handles data security, analytics, and service orchestration?", a: ["Sensing Layer", "Network Layer", "Application Layer", "Edge Layer"], c: 2, h: "This layer is where the value-added services and user interfaces reside.", j: "The Application Layer is where data is transformed into meaningful information, and user-facing services and security protocols are implemented." },
+            { q: "LoRaWAN is a technology primarily used for:", a: ["High-speed video streaming", "Local Wi-Fi connectivity", "Low-Power Wide-Area Networking (LPWAN)", "Fiber-optic backbone communication"], c: 2, h: "It's key for smart cities and agriculture where sensors need to transmit small amounts of data over long distances with minimal battery use.", j: "LoRaWAN is a protocol designed for Low-Power Wide-Area Networks, suitable for long-range, battery-operated IoT devices." },
+            { q: "What is the term for communication directly between machines without human intervention?", a: ["P2P", "M2M", "API", "G2C"], c: 1, h: "The first M stands for 'Machine'.", j: "Machine-to-Machine (M2M) communication refers to direct data exchange between devices using a communication channel." },
+            { q: "A primary challenge in deploying AI models on resource-constrained IoT devices is:", a: ["Lack of suitable programming languages", "The large memory and computational footprint of deep learning models", "Too much available bandwidth", "The absence of operating systems"], c: 1, h: "These devices typically have limited RAM, storage, and processing power.", j: "Deep learning models (especially those used for computer vision or complex sensor analysis) require significant memory and processing power, which often exceeds the capacity of small IoT microcontrollers." },
+
+            // Signal Processing & Robotics Questions (10)
+            { q: "What does the Nyquist-Shannon Sampling Theorem dictate for accurate signal reproduction?", a: ["The sampling rate must be equal to the signal's highest frequency", "The sampling rate must be at least twice the signal's highest frequency", "The sampling rate must be half the signal's lowest frequency", "The sampling rate is irrelevant to fidelity"], c: 1, h: "It sets the absolute minimum sampling rate required to avoid 'aliasing'.", j: "The sampling rate must be greater than twice the highest frequency component of the signal (Nyquist Rate) to perfectly reconstruct the continuous-time signal from its samples." },
+            { q: "The main purpose of a Low-Pass Filter (LPF) is to:", a: ["Block low frequencies and pass high frequencies", "Pass low frequencies and block high frequencies", "Invert the signal phase", "Increase the amplitude of all frequencies"], c: 1, h: "Think about the name: it lets *low* frequencies *pass* through.", j: "An LPF allows low-frequency signals to pass while attenuating (blocking) signals with frequencies higher than the cutoff frequency, often used for noise reduction." },
+            { q: "What is the Fourier Transform fundamentally used for?", a: ["Converting a signal from the time domain to the frequency domain", "Converting a signal from the frequency domain to the time domain", "Calculating signal correlation", "Smoothing time-series data"], c: 0, h: "It's essential for spectral analysis, showing the constituent frequencies of a waveform.", j: "The Fourier Transform decomposes a function (like a signal) of time into its constituent frequencies, revealing the spectrum of the signal." },
+            { q: "In image processing, what mathematical operation is often used with a kernel (or mask) to apply effects like blurring or edge detection?", a: ["Correlation", "Normalization", "Convolution", "Differentiation"], c: 2, h: "This operation involves sliding the kernel over the image to compute an output pixel value.", j: "Convolution is the mathematical operation used to combine a kernel (a small matrix defining the filter) with an input image to produce a filtered output." },
+            { q: "What are 'degrees of freedom' in the context of robotics?", a: ["The robot's total weight", "The number of independent parameters that define the robot's configuration", "The maximum speed of the end effector", "The robot's programming language complexity"], c: 1, h: "It relates to the number of ways a robot can move its arm or components.", j: "Degrees of freedom (DoF) is the number of independent axes or joints a robot has, which dictates its ability to move and orient its end-effector in 3D space." },
+            { q: "Which type of robot control involves sensors providing real-time measurements to adjust the robot's actions?", a: ["Open-Loop Control", "Linear Control", "Predictive Control", "Closed-Loop Control"], c: 3, h: "The loop is 'closed' when the output is fed back into the system for correction.", j: "Closed-Loop Control (or Feedback Control) uses sensors to measure the system output and compare it to the desired state, making continuous corrections." },
+            { q: "Which component is NOT typically found in a standard Digital Signal Processor (DSP) architecture?", a: ["MAC (Multiply-Accumulate Unit)", "Circular Buffering Support", "Very large L3 cache", "Instruction Pipelining"], c: 2, h: "DSPs focus on fast, repetitive arithmetic operations on streams of data, not general-purpose computing needs for massive caching.", j: "While all processors have caches, DSPs are optimized for highly repetitive, mathematical operations (like convolution, filtering) and often feature specialized memory (like circular buffers) and MAC units, rather than the massive L3 caches found in general-purpose CPUs." },
+            { q: "In the context of image filtering, what is 'salt-and-pepper' noise typically addressed by?", a: ["High-Pass Filter", "Fourier Transform", "Median Filter", "Wiener Filter"], c: 2, h: "This filter is non-linear and excels at removing impulsive noise without blurring edges significantly.", j: "A Median Filter is highly effective against 'salt-and-pepper' noise (random white and black pixels) because it replaces the central pixel value with the median of its neighbors, ignoring extreme outliers." },
+            { q: "What is the purpose of an encoder on a robot joint?", a: ["To provide power to the motor", "To transmit data wirelessly", "To measure the joint's angular position or velocity", "To prevent overheating"], c: 2, h: "It's the sensor that provides feedback on where the motor or joint is.", j: "An encoder is an electromechanical device that measures the angular position or motion of a motor or joint, providing critical feedback for accurate robot control." },
+            { q: "What is the primary role of the 'Discriminator' in a Generative Adversarial Network (GAN)?", a: ["To generate new data", "To train the Generator", "To judge if a data sample is real or fake", "To preprocess the input data"], c: 2, h: "Its job is to act like a critic or a policeman trying to spot fakes.", j: "The Discriminator is a binary classifier trained to distinguish between real data samples from the dataset and fake data samples produced by the Generator." },
+            
+            // 5 More Mixed Questions
+            { q: "Which characteristic is essential for data used in Edge Computing?", a: ["Bulk archival", "Low latency", "Decentralized control", "High persistence"], c: 1, h: "Edge processing is all about speed and immediacy.", j: "Edge computing's main purpose is to reduce latency by processing data close to the source, making low latency the essential characteristic for the data being handled." },
+            { q: "Which language is the industry standard for developing AI/ML models?", a: ["C++", "Java", "Python", "Rust"], c: 2, h: "This language has the largest ecosystem of libraries like NumPy, Pandas, and TensorFlow.", j: "Python is the dominant language in AI/ML due to its simple syntax and vast collection of specialized libraries." },
+            { q: "Which term describes a sensor converting a non-electrical physical quantity (like temperature) into an electrical signal?", a: ["Actuator", "Transistor", "Transducer", "Microcontroller"], c: 2, h: "This is the fundamental component used to measure the physical world.", j: "A Transducer (which includes sensors) converts one form of energy into another; specifically, a sensor converts a physical measurement into a measurable electrical signal." },
+            { q: "What is the 'bottleneck' in a typical industrial IoT system connecting thousands of sensors?", a: ["Power consumption of a single sensor", "The speed of the local user interface", "Data transmission bandwidth from the edge to the cloud", "The color of the robot arm"], c: 2, h: "The sheer volume of data often saturates the limited upstream connection.", j: "The Data Transmission Bandwidth is often the bottleneck, as sending raw data from thousands of sensors to the cloud simultaneously requires immense capacity, which is why Edge Computing is critical." },
+            { q: "In robotics, what is Kinematics?", a: ["The study of forces that cause motion", "The study of motion without regard to forces", "The process of programming the robot's user interface", "The type of motor used in the joints"], c: 1, h: "It focuses purely on position, velocity, and acceleration.", j: "Kinematics is the study of motion (position, velocity, acceleration) of the robotic structure without considering the forces (torques) that cause the motion (which is Dynamics)." }
+        ];
+
+        // --- 2. QUIZ STATE ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let attempts = 0; // Tracks wrong attempts for the current question (max 2)
+        let shuffledQuestionIndices = [];
+
+        const totalQuestions = questions.length;
+        const questionArea = document.getElementById('question-area');
+        const scoreDisplay = document.getElementById('score-display');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalButton = document.getElementById('modal-button');
+        const nextButton = document.getElementById('next-button');
+        const finalModal = document.getElementById('final-modal');
+        const finalScoreText = document.getElementById('final-score-text');
+
+        // --- 3. UTILITY FUNCTIONS ---
+
+        // Fisher-Yates (Knuth) Shuffle for indices
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [
+                    array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function initializeQuiz() {
+            shuffledQuestionIndices = Array.from({ length: totalQuestions }, (_, i) => i);
+            shuffle(shuffledQuestionIndices);
+            
+            currentQuestionIndex = 0;
+            score = 0;
+            attempts = 0;
+            updateScoreDisplay();
+            finalModal.classList.add('hidden');
+            nextButton.classList.add('hidden');
+            showCurrentQuestion();
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score} / ${totalQuestions}`;
+        }
+        
+        function disableOptions() {
+            document.querySelectorAll('.option-button').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+        
+        // Re-enables options after a hint, but keeps the previously clicked wrong option disabled
+        function enableOptionsForTryAgain(lastSelectedIndex) {
+            const options = document.querySelectorAll('.option-button');
+            options.forEach((btn, index) => {
+                if (index !== lastSelectedIndex) {
+                    btn.disabled = false;
+                }
+            });
+            nextButton.classList.add('hidden'); // Hide Next button if they are trying again
+        }
+        
+        // --- 4. MODAL/POPUP LOGIC ---
+
+        function showModal(title, body, colorClass, buttonText, buttonAction, selectedIndex = -1) {
+            modalTitle.textContent = title;
+            modalBody.textContent = body;
+            
+            // Reset borders and apply new color
+            modalContent.className = 'bg-dark-card p-6 m-4 rounded-xl max-w-sm w-full border-2';
+            modalContent.classList.add(colorClass);
+
+            // Dynamic Button
+            modalButton.textContent = buttonText;
+            modalButton.onclick = function() {
+                closeModal();
+                if (buttonAction === 'tryAgain') {
+                    // Re-enable options (except the selected one) and hide next button
+                    enableOptionsForTryAgain(selectedIndex); 
+                }
+                // If buttonAction is 'closeOnly', we just close, and the Next button is already visible for progression.
+            };
+            
+            feedbackModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            feedbackModal.classList.add('hidden');
+        }
+
+        function showFinalScore() {
+            finalScoreText.textContent = `Your Final Score: ${score} / ${totalQuestions}`;
+            finalModal.classList.remove('hidden');
+        }
+
+        // --- 5. QUIZ FLOW LOGIC ---
+
+        window.moveToNextQuestion = function() {
+            currentQuestionIndex++;
+            attempts = 0; // Reset attempts for the new question
+            if (currentQuestionIndex < totalQuestions) {
+                nextButton.classList.add('hidden'); // Hide button for the new question
+                showCurrentQuestion();
+            } else {
+                showFinalScore();
+            }
+        }
+
+        window.checkAnswer = function(selectedIndex) {
+            const globalIndex = shuffledQuestionIndices[currentQuestionIndex];
+            const currentQ = questions[globalIndex];
+            const selectedButton = document.getElementById(`option-${selectedIndex}`);
+            const correctOptionIndex = currentQ.c;
+            const correctButton = document.getElementById(`option-${correctOptionIndex}`);
+            
+            // 1. Show the Next button immediately, allowing manual progression
+            nextButton.classList.remove('hidden');
+
+            // 2. Disable options to prevent multiple clicks before feedback
+            disableOptions();
+            
+            if (selectedIndex === correctOptionIndex) {
+                // CORRECT ANSWER LOGIC
+                score++;
+                updateScoreDisplay();
+                
+                selectedButton.classList.add('bg-correct', 'border-correct');
+                selectedButton.classList.remove('bg-dark-card/50', 'border-gray-700');
+                
+                // Keep options disabled (Question solved)
+                showModal("Correct!", "Excellent! You got it right.", 'border-correct shadow-neon', 'Got it!', 'closeOnly');
+
+            } else {
+                // WRONG ANSWER LOGIC
+                attempts++;
+                
+                selectedButton.classList.add('bg-wrong', 'border-wrong');
+                selectedButton.classList.remove('bg-dark-card/50', 'border-gray-700');
+                selectedButton.disabled = true; // Permanently lock this wrong choice for this question
+
+                if (attempts === 1) {
+                    // 1st WRONG: Show Hint, allow user to try again OR click Next
+                    showModal("Incorrect!", `Hint: ${currentQ.h}`, 'border-warning shadow-neon-md', 'Try Again', 'tryAgain', selectedIndex);
+                    
+                } else if (attempts === 2) {
+                    // 2nd WRONG: Show Solution, force progression
+                    
+                    // Highlight the correct answer
+                    correctButton.classList.add('bg-correct', 'border-correct');
+                    correctButton.classList.remove('bg-dark-card/50', 'border-gray-700');
+
+                    // Permanently lock all options (Question solved/attempts exhausted)
+                    disableOptions(); 
+                    
+                    const correctOptionText = currentQ.a[correctOptionIndex];
+                    showModal(
+                        "Solution Revealed", 
+                        `The correct answer was: "${correctOptionText}". \n\nJustification: ${currentQ.j}`, 
+                        'border-wrong shadow-neon-md', 
+                        'Got it!', 
+                        'closeOnly'
+                    );
+                }
+            }
+        }
+
+        // --- 6. RENDERING FUNCTION ---
+
+        function showCurrentQuestion() {
+            const globalIndex = shuffledQuestionIndices[currentQuestionIndex];
+            const currentQ = questions[globalIndex];
+
+            // Dynamic Progress Text
+            const progress = `${currentQuestionIndex + 1} / ${totalQuestions}`;
+
+            // Create the HTML structure for the current question
+            let html = `
+                <div class="mb-6">
+                    <p class="text-neon-magenta text-sm mb-2 font-mono">${progress}</p>
+                    <h2 class="text-xl md:text-2xl font-semibold text-white mb-6 text-left">
+                        ${currentQ.q}
+                    </h2>
+                </div>
+                <div id="options-list" class="space-y-4">
+            `;
+
+            currentQ.a.forEach((option, index) => {
+                html += `
+                    <button 
+                        id="option-${index}"
+                        class="option-button w-full text-left p-4 rounded-lg border border-gray-700 bg-dark-card/50 text-lg text-gray-200"
+                        onclick="checkAnswer(${index})"
+                    >
+                        <span class="font-bold text-neon-cyan/80 mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+            questionArea.innerHTML = html;
+        }
+
+        // Global functions for quiz control
+        window.restartQuiz = initializeQuiz;
+        window.closeModal = closeModal;
+
+        // Initialize the quiz when the page loads
+        document.addEventListener('DOMContentLoaded', initializeQuiz);
+    </script>
+
+</body>
+</html>
